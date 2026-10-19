@@ -147,8 +147,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 ✖ dplyr::lag()    masks stats::lag()
 ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(naniar)</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(corrplot)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(naniar)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(corrplot)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>corrplot 0.95 loaded</code></pre>
 </div>
@@ -106060,22 +106061,111 @@ calendar_monthAugust       calendar_monthAugust  0.000000e+00</code></pre>
 </figure>
 </div>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb147"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb147-1"><a href="#cb147-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare top 10 predictors across outcomes</span></span>
-<span id="cb147-2"><a href="#cb147-2" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(shap_sev<span class="sc">$</span>importance, <span class="dv">10</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>                                   Variable Mean_Abs_SHAP
-visitors                           visitors    0.75768216
-tourist_ratio                 tourist_ratio    0.49490771
-drone_hrs                         drone_hrs    0.15966092
-swell_avg_m                     swell_avg_m    0.15926946
-campaign_idx                   campaign_idx    0.12099354
-turbidity                         turbidity    0.09541025
-n_rips                               n_rips    0.08040537
-rain_mm                             rain_mm    0.06044811
-calendar_monthOctober calendar_monthOctober    0.04452552
-icecream_visits             icecream_visits    0.04055603</code></pre>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb147"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb147-1"><a href="#cb147-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Analysis on individual strategy factors</span></span>
+<span id="cb147-2"><a href="#cb147-2" aria-hidden="true" tabindex="-1"></a>effect <span class="ot">&lt;-</span> <span class="cf">function</span>(change_fn, label) {</span>
+<span id="cb147-3"><a href="#cb147-3" aria-hidden="true" tabindex="-1"></a>  scen <span class="ot">&lt;-</span> <span class="fu">change_fn</span>(future)</span>
+<span id="cb147-4"><a href="#cb147-4" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(<span class="sc">~</span> . <span class="sc">-</span> <span class="dv">1</span>, <span class="at">data =</span> dplyr<span class="sc">::</span><span class="fu">select</span>(scen,</span>
+<span id="cb147-5"><a href="#cb147-5" aria-hidden="true" tabindex="-1"></a>                                                  <span class="sc">-</span><span class="fu">any_of</span>(<span class="fu">c</span>(<span class="st">"month"</span>,<span class="st">"date"</span>,<span class="st">"beach_nm"</span>,<span class="st">"n_sev"</span>,<span class="st">"n_cc"</span>,<span class="st">"n_mild"</span>,</span>
+<span id="cb147-6"><a href="#cb147-6" aria-hidden="true" tabindex="-1"></a>                                                            <span class="st">"total_inc"</span>,<span class="st">"Severe"</span>,<span class="st">"CloseCall"</span>,<span class="st">"Mild"</span>,<span class="st">"Total"</span>))))</span>
+<span id="cb147-7"><a href="#cb147-7" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> x[, train_cols, drop <span class="ot">=</span> <span class="cn">FALSE</span>]</span>
+<span id="cb147-8"><a href="#cb147-8" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> <span class="fu">predict</span>(task1_severe_model, <span class="fu">xgb.DMatrix</span>(x))</span>
+<span id="cb147-9"><a href="#cb147-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">Lever =</span> label,</span>
+<span id="cb147-10"><a href="#cb147-10" aria-hidden="true" tabindex="-1"></a>         <span class="at">Pct_change_severe =</span> <span class="dv">100</span> <span class="sc">*</span> (<span class="fu">sum</span>(p) <span class="sc">/</span> <span class="fu">sum</span>(future<span class="sc">$</span>Severe) <span class="sc">-</span> <span class="dv">1</span>))</span>
+<span id="cb147-11"><a href="#cb147-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb147-12"><a href="#cb147-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb147-13"><a href="#cb147-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb147-14"><a href="#cb147-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb147-15"><a href="#cb147-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare top 10 predictors across outcomes</span></span>
+<span id="cb147-16"><a href="#cb147-16" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">head</span>(shap_sev<span class="sc">$</span>importance, <span class="dv">15</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: left;">Variable</th>
+<th style="text-align: right;">Mean_Abs_SHAP</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">visitors</td>
+<td style="text-align: left;">visitors</td>
+<td style="text-align: right;">0.7576822</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">tourist_ratio</td>
+<td style="text-align: left;">tourist_ratio</td>
+<td style="text-align: right;">0.4949077</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">drone_hrs</td>
+<td style="text-align: left;">drone_hrs</td>
+<td style="text-align: right;">0.1596609</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">swell_avg_m</td>
+<td style="text-align: left;">swell_avg_m</td>
+<td style="text-align: right;">0.1592695</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">campaign_idx</td>
+<td style="text-align: left;">campaign_idx</td>
+<td style="text-align: right;">0.1209935</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">turbidity</td>
+<td style="text-align: left;">turbidity</td>
+<td style="text-align: right;">0.0954102</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">n_rips</td>
+<td style="text-align: left;">n_rips</td>
+<td style="text-align: right;">0.0804054</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">rain_mm</td>
+<td style="text-align: left;">rain_mm</td>
+<td style="text-align: right;">0.0604481</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">calendar_monthOctober</td>
+<td style="text-align: left;">calendar_monthOctober</td>
+<td style="text-align: right;">0.0445255</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">icecream_visits</td>
+<td style="text-align: left;">icecream_visits</td>
+<td style="text-align: right;">0.0405560</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">surfer_prop</td>
+<td style="text-align: left;">surfer_prop</td>
+<td style="text-align: right;">0.0371069</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">shore_len_m</td>
+<td style="text-align: left;">shore_len_m</td>
+<td style="text-align: right;">0.0152637</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">first_aid_cap</td>
+<td style="text-align: left;">first_aid_cap</td>
+<td style="text-align: right;">0.0148617</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">postcode2478</td>
+<td style="text-align: left;">postcode2478</td>
+<td style="text-align: right;">0.0137921</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">water_temp</td>
+<td style="text-align: left;">water_temp</td>
+<td style="text-align: right;">0.0135347</td>
+</tr>
+</tbody>
+</table>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb149"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb149-1"><a href="#cb149-1" aria-hidden="true" tabindex="-1"></a>shap_sev<span class="sc">$</span>importance</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb148"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb148-1"><a href="#cb148-1" aria-hidden="true" tabindex="-1"></a>shap_sev<span class="sc">$</span>importance</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>                                       Variable Mean_Abs_SHAP
 visitors                               visitors  0.7576821635
@@ -106162,160 +106252,248 @@ calendar_monthAugust       calendar_monthAugust  0.0000000000
 calendar_monthSeptember calendar_monthSeptember  0.0000000000
 calendar_monthDecember   calendar_monthDecember  0.0000000000</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb151"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb151-1"><a href="#cb151-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(shap_total<span class="sc">$</span>importance, <span class="dv">10</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>                   Variable Mean_Abs_SHAP
-visitors           visitors    1.35846948
-n_rips               n_rips    0.19010864
-tourist_ratio tourist_ratio    0.17496892
-campaign_idx   campaign_idx    0.16475522
-lg_hrs               lg_hrs    0.03049878
-air_temp_hi     air_temp_hi    0.02475522
-turbidity         turbidity    0.02225254
-water_temp       water_temp    0.01912996
-swell_avg_m     swell_avg_m    0.01861980
-rain_mm             rain_mm    0.01827396</code></pre>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb150"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb150-1"><a href="#cb150-1" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">head</span>(shap_total<span class="sc">$</span>importance, <span class="dv">15</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: left;">Variable</th>
+<th style="text-align: right;">Mean_Abs_SHAP</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">visitors</td>
+<td style="text-align: left;">visitors</td>
+<td style="text-align: right;">1.3584695</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">n_rips</td>
+<td style="text-align: left;">n_rips</td>
+<td style="text-align: right;">0.1901086</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">tourist_ratio</td>
+<td style="text-align: left;">tourist_ratio</td>
+<td style="text-align: right;">0.1749689</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">campaign_idx</td>
+<td style="text-align: left;">campaign_idx</td>
+<td style="text-align: right;">0.1647552</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">lg_hrs</td>
+<td style="text-align: left;">lg_hrs</td>
+<td style="text-align: right;">0.0304988</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">air_temp_hi</td>
+<td style="text-align: left;">air_temp_hi</td>
+<td style="text-align: right;">0.0247552</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">turbidity</td>
+<td style="text-align: left;">turbidity</td>
+<td style="text-align: right;">0.0222525</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">water_temp</td>
+<td style="text-align: left;">water_temp</td>
+<td style="text-align: right;">0.0191300</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">swell_avg_m</td>
+<td style="text-align: left;">swell_avg_m</td>
+<td style="text-align: right;">0.0186198</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">rain_mm</td>
+<td style="text-align: left;">rain_mm</td>
+<td style="text-align: right;">0.0182740</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">shore_len_m</td>
+<td style="text-align: left;">shore_len_m</td>
+<td style="text-align: right;">0.0146558</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">wind_days</td>
+<td style="text-align: left;">wind_days</td>
+<td style="text-align: right;">0.0142538</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">first_aid_cap</td>
+<td style="text-align: left;">first_aid_cap</td>
+<td style="text-align: right;">0.0141636</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">equip_rating</td>
+<td style="text-align: left;">equip_rating</td>
+<td style="text-align: right;">0.0141050</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">postcode2026</td>
+<td style="text-align: left;">postcode2026</td>
+<td style="text-align: right;">0.0137670</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 </section>
 <section id="task-2-modelling" class="level1">
 <h1>Task 2 Modelling</h1>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb153"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb153-1"><a href="#cb153-1" aria-hidden="true" tabindex="-1"></a>task2_data <span class="ot">&lt;-</span> future</span>
-<span id="cb153-2"><a href="#cb153-2" aria-hidden="true" tabindex="-1"></a>task2_pricing <span class="ot">&lt;-</span> pricing</span>
-<span id="cb153-3"><a href="#cb153-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-4"><a href="#cb153-4" aria-hidden="true" tabindex="-1"></a>baseline <span class="ot">&lt;-</span> <span class="fu">sum</span>(task2_data<span class="sc">$</span>Severe)</span>
-<span id="cb153-5"><a href="#cb153-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-6"><a href="#cb153-6" aria-hidden="true" tabindex="-1"></a>task2_model <span class="ot">&lt;-</span> task1_severe_model</span>
-<span id="cb153-7"><a href="#cb153-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-8"><a href="#cb153-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Both models use same predictors --&gt; Can use original model for this</span></span>
-<span id="cb153-9"><a href="#cb153-9" aria-hidden="true" tabindex="-1"></a>train_cols <span class="ot">&lt;-</span> <span class="fu">colnames</span>(<span class="fu">model.matrix</span>(<span class="sc">~</span> . <span class="sc">-</span> <span class="dv">1</span>, <span class="at">data =</span> dplyr<span class="sc">::</span><span class="fu">select</span>(sev_r<span class="sc">$</span>train, <span class="sc">-</span>n_sev)))</span>
-<span id="cb153-10"><a href="#cb153-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-11"><a href="#cb153-11" aria-hidden="true" tabindex="-1"></a>evaluate <span class="ot">&lt;-</span> <span class="cf">function</span>(strategy, scenario, cost, base_cost, <span class="at">location =</span> <span class="st">"beach"</span>) {</span>
-<span id="cb153-12"><a href="#cb153-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-13"><a href="#cb153-13" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(</span>
-<span id="cb153-14"><a href="#cb153-14" aria-hidden="true" tabindex="-1"></a>    <span class="sc">~</span> . <span class="sc">-</span> <span class="dv">1</span>,</span>
-<span id="cb153-15"><a href="#cb153-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> dplyr<span class="sc">::</span><span class="fu">select</span>(</span>
-<span id="cb153-16"><a href="#cb153-16" aria-hidden="true" tabindex="-1"></a>      scenario,</span>
-<span id="cb153-17"><a href="#cb153-17" aria-hidden="true" tabindex="-1"></a>      <span class="sc">-</span><span class="fu">any_of</span>(<span class="fu">c</span>(</span>
-<span id="cb153-18"><a href="#cb153-18" aria-hidden="true" tabindex="-1"></a>        <span class="st">"month"</span>, <span class="st">"date"</span>, <span class="st">"beach_nm"</span>,</span>
-<span id="cb153-19"><a href="#cb153-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">"n_sev"</span>, <span class="st">"n_cc"</span>, <span class="st">"n_mild"</span>, <span class="st">"total_inc"</span>,</span>
-<span id="cb153-20"><a href="#cb153-20" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Severe"</span>, <span class="st">"CloseCall"</span>, <span class="st">"Mild"</span>, <span class="st">"Total"</span></span>
-<span id="cb153-21"><a href="#cb153-21" aria-hidden="true" tabindex="-1"></a>      ))</span>
-<span id="cb153-22"><a href="#cb153-22" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb153-23"><a href="#cb153-23" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb153-24"><a href="#cb153-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-25"><a href="#cb153-25" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> x[, train_cols, drop <span class="ot">=</span> <span class="cn">FALSE</span>]</span>
-<span id="cb153-26"><a href="#cb153-26" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">as.numeric</span>(x), <span class="at">nrow =</span> <span class="fu">nrow</span>(x),</span>
-<span id="cb153-27"><a href="#cb153-27" aria-hidden="true" tabindex="-1"></a>              <span class="at">dimnames =</span> <span class="fu">list</span>(<span class="cn">NULL</span>, <span class="fu">colnames</span>(x)))</span>
-<span id="cb153-28"><a href="#cb153-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-29"><a href="#cb153-29" aria-hidden="true" tabindex="-1"></a>  scenario<span class="sc">$</span>predicted <span class="ot">&lt;-</span> <span class="fu">predict</span>(task2_model, <span class="fu">xgb.DMatrix</span>(x))</span>
-<span id="cb153-30"><a href="#cb153-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-31"><a href="#cb153-31" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Group by beach or postcode depending on how intervention is priced</span></span>
-<span id="cb153-32"><a href="#cb153-32" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (location <span class="sc">==</span> <span class="st">"beach"</span>) {</span>
-<span id="cb153-33"><a href="#cb153-33" aria-hidden="true" tabindex="-1"></a>    scenario <span class="ot">&lt;-</span> scenario <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(beach_nm, postcode)</span>
-<span id="cb153-34"><a href="#cb153-34" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
-<span id="cb153-35"><a href="#cb153-35" aria-hidden="true" tabindex="-1"></a>    scenario <span class="ot">&lt;-</span> scenario <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(postcode)</span>
-<span id="cb153-36"><a href="#cb153-36" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb153-37"><a href="#cb153-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-38"><a href="#cb153-38" aria-hidden="true" tabindex="-1"></a>  scenario <span class="sc">%&gt;%</span></span>
-<span id="cb153-39"><a href="#cb153-39" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(</span>
-<span id="cb153-40"><a href="#cb153-40" aria-hidden="true" tabindex="-1"></a>      <span class="at">Strategy =</span> strategy,</span>
-<span id="cb153-41"><a href="#cb153-41" aria-hidden="true" tabindex="-1"></a>      <span class="at">Cost =</span> base_cost,</span>
-<span id="cb153-42"><a href="#cb153-42" aria-hidden="true" tabindex="-1"></a>      <span class="at">Severe_Prevented =</span> <span class="fu">sum</span>(Severe <span class="sc">-</span> predicted),</span>
-<span id="cb153-43"><a href="#cb153-43" aria-hidden="true" tabindex="-1"></a>      <span class="at">.groups =</span> <span class="st">"drop"</span></span>
-<span id="cb153-44"><a href="#cb153-44" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
-<span id="cb153-45"><a href="#cb153-45" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
-<span id="cb153-46"><a href="#cb153-46" aria-hidden="true" tabindex="-1"></a>      <span class="at">Cost_Effectiveness_per_mil =</span> Severe_Prevented <span class="sc">/</span> Cost <span class="sc">*</span> <span class="fl">1e6</span></span>
-<span id="cb153-47"><a href="#cb153-47" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb153-48"><a href="#cb153-48" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb153-49"><a href="#cb153-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-50"><a href="#cb153-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-51"><a href="#cb153-51" aria-hidden="true" tabindex="-1"></a>drone_hardware <span class="ot">&lt;-</span> <span class="dv">9000</span></span>
-<span id="cb153-52"><a href="#cb153-52" aria-hidden="true" tabindex="-1"></a>drone_operator <span class="ot">&lt;-</span> <span class="dv">450</span></span>
-<span id="cb153-53"><a href="#cb153-53" aria-hidden="true" tabindex="-1"></a>drone_flight <span class="ot">&lt;-</span> <span class="dv">45</span></span>
-<span id="cb153-54"><a href="#cb153-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-55"><a href="#cb153-55" aria-hidden="true" tabindex="-1"></a>lifeguard_hourly <span class="ot">&lt;-</span> <span class="dv">58</span></span>
-<span id="cb153-56"><a href="#cb153-56" aria-hidden="true" tabindex="-1"></a>lifeguard_fte <span class="ot">&lt;-</span> <span class="dv">80000</span></span>
-<span id="cb153-57"><a href="#cb153-57" aria-hidden="true" tabindex="-1"></a>lifeguard_training <span class="ot">&lt;-</span> <span class="dv">500</span></span>
-<span id="cb153-58"><a href="#cb153-58" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-59"><a href="#cb153-59" aria-hidden="true" tabindex="-1"></a>campaign_cost <span class="ot">&lt;-</span> <span class="dv">15000</span></span>
-<span id="cb153-60"><a href="#cb153-60" aria-hidden="true" tabindex="-1"></a>first_aid_cost <span class="ot">&lt;-</span> <span class="dv">20000</span></span>
-<span id="cb153-61"><a href="#cb153-61" aria-hidden="true" tabindex="-1"></a>pa_cost <span class="ot">&lt;-</span> <span class="dv">25000</span></span>
-<span id="cb153-62"><a href="#cb153-62" aria-hidden="true" tabindex="-1"></a>flags_cost <span class="ot">&lt;-</span> <span class="dv">5000</span></span>
-<span id="cb153-63"><a href="#cb153-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-64"><a href="#cb153-64" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> task2_data</span>
-<span id="cb153-65"><a href="#cb153-65" aria-hidden="true" tabindex="-1"></a>nb <span class="ot">&lt;-</span> <span class="fu">n_distinct</span>(d<span class="sc">$</span>beach_nm)</span>
-<span id="cb153-66"><a href="#cb153-66" aria-hidden="true" tabindex="-1"></a>np <span class="ot">&lt;-</span> <span class="fu">n_distinct</span>(d<span class="sc">$</span>postcode)</span>
-<span id="cb153-67"><a href="#cb153-67" aria-hidden="true" tabindex="-1"></a>summer <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"November"</span>, <span class="st">"December"</span>, <span class="st">"January"</span>, <span class="st">"February"</span>)</span>
-<span id="cb153-68"><a href="#cb153-68" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-69"><a href="#cb153-69" aria-hidden="true" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
-<span id="cb153-70"><a href="#cb153-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-71"><a href="#cb153-71" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Full-time lifeguard: 1 FTE per beach = 1750 hrs/year</span></span>
-<span id="cb153-72"><a href="#cb153-72" aria-hidden="true" tabindex="-1"></a>  <span class="fu">evaluate</span>(<span class="st">"Full-time lifeguard"</span>,</span>
-<span id="cb153-73"><a href="#cb153-73" aria-hidden="true" tabindex="-1"></a>           <span class="fu">mutate</span>(d, <span class="at">lg_hrs =</span> lg_hrs <span class="sc">+</span> <span class="dv">1750</span> <span class="sc">/</span> <span class="dv">12</span>),</span>
-<span id="cb153-74"><a href="#cb153-74" aria-hidden="true" tabindex="-1"></a>           nb <span class="sc">*</span> (lifeguard_fte <span class="sc">+</span> lifeguard_training),</span>
-<span id="cb153-75"><a href="#cb153-75" aria-hidden="true" tabindex="-1"></a>           lifeguard_fte <span class="sc">+</span> lifeguard_training),</span>
-<span id="cb153-76"><a href="#cb153-76" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-77"><a href="#cb153-77" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Casual lifeguard: same additional hours, paid hourly</span></span>
-<span id="cb153-78"><a href="#cb153-78" aria-hidden="true" tabindex="-1"></a>  <span class="fu">evaluate</span>(<span class="st">"Casual lifeguard"</span>,</span>
-<span id="cb153-79"><a href="#cb153-79" aria-hidden="true" tabindex="-1"></a>           <span class="fu">mutate</span>(d, <span class="at">lg_hrs =</span> lg_hrs <span class="sc">+</span> <span class="dv">1750</span> <span class="sc">/</span> <span class="dv">12</span>),</span>
-<span id="cb153-80"><a href="#cb153-80" aria-hidden="true" tabindex="-1"></a>           nb <span class="sc">*</span> <span class="dv">1750</span> <span class="sc">*</span> lifeguard_hourly,</span>
-<span id="cb153-81"><a href="#cb153-81" aria-hidden="true" tabindex="-1"></a>           <span class="dv">1750</span> <span class="sc">*</span> lifeguard_hourly),</span>
-<span id="cb153-82"><a href="#cb153-82" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-83"><a href="#cb153-83" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Drone: +120 flight hrs/month per beach</span></span>
-<span id="cb153-84"><a href="#cb153-84" aria-hidden="true" tabindex="-1"></a>  <span class="fu">evaluate</span>(<span class="st">"Drone"</span>,</span>
-<span id="cb153-85"><a href="#cb153-85" aria-hidden="true" tabindex="-1"></a>           <span class="fu">mutate</span>(d, <span class="at">drone_hrs =</span> drone_hrs <span class="sc">+</span> <span class="dv">120</span>),</span>
-<span id="cb153-86"><a href="#cb153-86" aria-hidden="true" tabindex="-1"></a>           nb <span class="sc">*</span> (drone_hardware <span class="sc">+</span> drone_operator <span class="sc">+</span> <span class="dv">120</span> <span class="sc">*</span> <span class="dv">12</span> <span class="sc">*</span> drone_flight),</span>
-<span id="cb153-87"><a href="#cb153-87" aria-hidden="true" tabindex="-1"></a>           drone_hardware <span class="sc">+</span> drone_operator <span class="sc">+</span> <span class="dv">120</span> <span class="sc">*</span> <span class="dv">12</span> <span class="sc">*</span> drone_flight),</span>
-<span id="cb153-88"><a href="#cb153-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-89"><a href="#cb153-89" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Education campaign: postcode-level intervention</span></span>
-<span id="cb153-90"><a href="#cb153-90" aria-hidden="true" tabindex="-1"></a>  <span class="fu">evaluate</span>(<span class="st">"Education campaign"</span>,</span>
-<span id="cb153-91"><a href="#cb153-91" aria-hidden="true" tabindex="-1"></a>           <span class="fu">mutate</span>(d, <span class="at">campaign_idx =</span> <span class="fu">ifelse</span>(</span>
-<span id="cb153-92"><a href="#cb153-92" aria-hidden="true" tabindex="-1"></a>             calendar_month <span class="sc">%in%</span> summer,</span>
-<span id="cb153-93"><a href="#cb153-93" aria-hidden="true" tabindex="-1"></a>             <span class="fu">pmax</span>(campaign_idx, <span class="fl">0.7</span>),</span>
-<span id="cb153-94"><a href="#cb153-94" aria-hidden="true" tabindex="-1"></a>             campaign_idx</span>
-<span id="cb153-95"><a href="#cb153-95" aria-hidden="true" tabindex="-1"></a>           )),</span>
-<span id="cb153-96"><a href="#cb153-96" aria-hidden="true" tabindex="-1"></a>           np <span class="sc">*</span> campaign_cost,</span>
-<span id="cb153-97"><a href="#cb153-97" aria-hidden="true" tabindex="-1"></a>           campaign_cost,</span>
-<span id="cb153-98"><a href="#cb153-98" aria-hidden="true" tabindex="-1"></a>           <span class="at">location =</span> <span class="st">"postcode"</span>),</span>
-<span id="cb153-99"><a href="#cb153-99" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-100"><a href="#cb153-100" aria-hidden="true" tabindex="-1"></a>  <span class="co"># First aid training: postcode-level intervention</span></span>
-<span id="cb153-101"><a href="#cb153-101" aria-hidden="true" tabindex="-1"></a>  <span class="fu">evaluate</span>(<span class="st">"First aid training"</span>,</span>
-<span id="cb153-102"><a href="#cb153-102" aria-hidden="true" tabindex="-1"></a>           <span class="fu">mutate</span>(d, <span class="at">first_aid_cap =</span> <span class="fu">pmin</span>(first_aid_cap <span class="sc">+</span> <span class="dv">10</span>, <span class="dv">100</span>)),</span>
-<span id="cb153-103"><a href="#cb153-103" aria-hidden="true" tabindex="-1"></a>           np <span class="sc">*</span> first_aid_cost,</span>
-<span id="cb153-104"><a href="#cb153-104" aria-hidden="true" tabindex="-1"></a>           first_aid_cost,</span>
-<span id="cb153-105"><a href="#cb153-105" aria-hidden="true" tabindex="-1"></a>           <span class="at">location =</span> <span class="st">"postcode"</span>),</span>
-<span id="cb153-106"><a href="#cb153-106" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-107"><a href="#cb153-107" aria-hidden="true" tabindex="-1"></a>  <span class="co"># PA system: only beaches without an existing system</span></span>
-<span id="cb153-108"><a href="#cb153-108" aria-hidden="true" tabindex="-1"></a>  <span class="fu">evaluate</span>(<span class="st">"PA system"</span>,</span>
-<span id="cb153-109"><a href="#cb153-109" aria-hidden="true" tabindex="-1"></a>           <span class="fu">mutate</span>(d, <span class="at">pa_system =</span> <span class="fu">factor</span>(<span class="st">"1"</span>, <span class="at">levels =</span> <span class="fu">levels</span>(pa_system))),</span>
-<span id="cb153-110"><a href="#cb153-110" aria-hidden="true" tabindex="-1"></a>           <span class="fu">n_distinct</span>(d<span class="sc">$</span>beach_nm[<span class="fu">as.character</span>(d<span class="sc">$</span>pa_system) <span class="sc">==</span> <span class="st">"0"</span>]) <span class="sc">*</span> pa_cost,</span>
-<span id="cb153-111"><a href="#cb153-111" aria-hidden="true" tabindex="-1"></a>           pa_cost) <span class="sc">%&gt;%</span></span>
-<span id="cb153-112"><a href="#cb153-112" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(beach_nm <span class="sc">%in%</span> d<span class="sc">$</span>beach_nm[<span class="fu">as.character</span>(d<span class="sc">$</span>pa_system) <span class="sc">==</span> <span class="st">"0"</span>]),</span>
-<span id="cb153-113"><a href="#cb153-113" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-114"><a href="#cb153-114" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Rip flags: only beaches without existing flags</span></span>
-<span id="cb153-115"><a href="#cb153-115" aria-hidden="true" tabindex="-1"></a>  <span class="fu">evaluate</span>(<span class="st">"Rip flags"</span>,</span>
-<span id="cb153-116"><a href="#cb153-116" aria-hidden="true" tabindex="-1"></a>           <span class="fu">mutate</span>(d, <span class="at">flags =</span> <span class="fu">factor</span>(<span class="st">"1"</span>, <span class="at">levels =</span> <span class="fu">levels</span>(flags))),</span>
-<span id="cb153-117"><a href="#cb153-117" aria-hidden="true" tabindex="-1"></a>           <span class="fu">n_distinct</span>(d<span class="sc">$</span>beach_nm[<span class="fu">as.character</span>(d<span class="sc">$</span>flags) <span class="sc">==</span> <span class="st">"0"</span>]) <span class="sc">*</span> flags_cost,</span>
-<span id="cb153-118"><a href="#cb153-118" aria-hidden="true" tabindex="-1"></a>           flags_cost) <span class="sc">%&gt;%</span></span>
-<span id="cb153-119"><a href="#cb153-119" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(beach_nm <span class="sc">%in%</span> d<span class="sc">$</span>beach_nm[<span class="fu">as.character</span>(d<span class="sc">$</span>flags) <span class="sc">==</span> <span class="st">"0"</span>])</span>
-<span id="cb153-120"><a href="#cb153-120" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb153-121"><a href="#cb153-121" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
-<span id="cb153-122"><a href="#cb153-122" aria-hidden="true" tabindex="-1"></a>  <span class="co">#Add column --&gt; customise location to beach or postcode specific</span></span>
-<span id="cb153-123"><a href="#cb153-123" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb153-124"><a href="#cb153-124" aria-hidden="true" tabindex="-1"></a>    <span class="at">Location =</span> <span class="fu">ifelse</span>(</span>
-<span id="cb153-125"><a href="#cb153-125" aria-hidden="true" tabindex="-1"></a>      <span class="fu">is.na</span>(beach_nm),</span>
-<span id="cb153-126"><a href="#cb153-126" aria-hidden="true" tabindex="-1"></a>      <span class="fu">paste</span>(<span class="st">"Postcode"</span>, postcode),</span>
-<span id="cb153-127"><a href="#cb153-127" aria-hidden="true" tabindex="-1"></a>      beach_nm</span>
-<span id="cb153-128"><a href="#cb153-128" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb153-129"><a href="#cb153-129" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb153-130"><a href="#cb153-130" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(</span>
-<span id="cb153-131"><a href="#cb153-131" aria-hidden="true" tabindex="-1"></a>    Strategy, Location, Cost,</span>
-<span id="cb153-132"><a href="#cb153-132" aria-hidden="true" tabindex="-1"></a>    Severe_Prevented, Cost_Effectiveness_per_mil</span>
-<span id="cb153-133"><a href="#cb153-133" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb153-134"><a href="#cb153-134" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(Cost_Effectiveness_per_mil))</span>
-<span id="cb153-135"><a href="#cb153-135" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(results, <span class="dv">20</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb151"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb151-1"><a href="#cb151-1" aria-hidden="true" tabindex="-1"></a>task2_data <span class="ot">&lt;-</span> future</span>
+<span id="cb151-2"><a href="#cb151-2" aria-hidden="true" tabindex="-1"></a>task2_pricing <span class="ot">&lt;-</span> pricing</span>
+<span id="cb151-3"><a href="#cb151-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb151-4"><a href="#cb151-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb151-5"><a href="#cb151-5" aria-hidden="true" tabindex="-1"></a>task2_model <span class="ot">&lt;-</span> task1_severe_model</span>
+<span id="cb151-6"><a href="#cb151-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb151-7"><a href="#cb151-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Both models use same predictors --&gt; Can use original model for this</span></span>
+<span id="cb151-8"><a href="#cb151-8" aria-hidden="true" tabindex="-1"></a>train_cols <span class="ot">&lt;-</span> <span class="fu">colnames</span>(<span class="fu">model.matrix</span>(<span class="sc">~</span> . <span class="sc">-</span> <span class="dv">1</span>, <span class="at">data =</span> dplyr<span class="sc">::</span><span class="fu">select</span>(sev_r<span class="sc">$</span>train, <span class="sc">-</span>n_sev)))</span>
+<span id="cb151-9"><a href="#cb151-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb151-10"><a href="#cb151-10" aria-hidden="true" tabindex="-1"></a>evaluate <span class="ot">&lt;-</span> <span class="cf">function</span>(strategy, scenario, cost, base_cost, <span class="at">location =</span> <span class="st">"beach"</span>) {</span>
+<span id="cb151-11"><a href="#cb151-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb151-12"><a href="#cb151-12" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(</span>
+<span id="cb151-13"><a href="#cb151-13" aria-hidden="true" tabindex="-1"></a>    <span class="sc">~</span> . <span class="sc">-</span> <span class="dv">1</span>,</span>
+<span id="cb151-14"><a href="#cb151-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> dplyr<span class="sc">::</span><span class="fu">select</span>(</span>
+<span id="cb151-15"><a href="#cb151-15" aria-hidden="true" tabindex="-1"></a>      scenario,</span>
+<span id="cb151-16"><a href="#cb151-16" aria-hidden="true" tabindex="-1"></a>      <span class="sc">-</span><span class="fu">any_of</span>(<span class="fu">c</span>(</span>
+<span id="cb151-17"><a href="#cb151-17" aria-hidden="true" tabindex="-1"></a>        <span class="st">"month"</span>, <span class="st">"date"</span>, <span class="st">"beach_nm"</span>,</span>
+<span id="cb151-18"><a href="#cb151-18" aria-hidden="true" tabindex="-1"></a>        <span class="st">"n_sev"</span>, <span class="st">"n_cc"</span>, <span class="st">"n_mild"</span>, <span class="st">"total_inc"</span>,</span>
+<span id="cb151-19"><a href="#cb151-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Severe"</span>, <span class="st">"CloseCall"</span>, <span class="st">"Mild"</span>, <span class="st">"Total"</span></span>
+<span id="cb151-20"><a href="#cb151-20" aria-hidden="true" tabindex="-1"></a>      ))</span>
+<span id="cb151-21"><a href="#cb151-21" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb151-22"><a href="#cb151-22" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb151-23"><a href="#cb151-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb151-24"><a href="#cb151-24" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> x[, train_cols, drop <span class="ot">=</span> <span class="cn">FALSE</span>]</span>
+<span id="cb151-25"><a href="#cb151-25" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">as.numeric</span>(x), <span class="at">nrow =</span> <span class="fu">nrow</span>(x),</span>
+<span id="cb151-26"><a href="#cb151-26" aria-hidden="true" tabindex="-1"></a>              <span class="at">dimnames =</span> <span class="fu">list</span>(<span class="cn">NULL</span>, <span class="fu">colnames</span>(x)))</span>
+<span id="cb151-27"><a href="#cb151-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb151-28"><a href="#cb151-28" aria-hidden="true" tabindex="-1"></a>  scenario<span class="sc">$</span>predicted <span class="ot">&lt;-</span> <span class="fu">predict</span>(task2_model, <span class="fu">xgb.DMatrix</span>(x))</span>
+<span id="cb151-29"><a href="#cb151-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb151-30"><a href="#cb151-30" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Group by beach or postcode depending on how intervention is priced</span></span>
+<span id="cb151-31"><a href="#cb151-31" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (location <span class="sc">==</span> <span class="st">"beach"</span>) {</span>
+<span id="cb151-32"><a href="#cb151-32" aria-hidden="true" tabindex="-1"></a>    scenario <span class="ot">&lt;-</span> scenario <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(beach_nm, postcode)</span>
+<span id="cb151-33"><a href="#cb151-33" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb151-34"><a href="#cb151-34" aria-hidden="true" tabindex="-1"></a>    scenario <span class="ot">&lt;-</span> scenario <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(postcode)</span>
+<span id="cb151-35"><a href="#cb151-35" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb151-36"><a href="#cb151-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb151-37"><a href="#cb151-37" aria-hidden="true" tabindex="-1"></a>  scenario <span class="sc">%&gt;%</span></span>
+<span id="cb151-38"><a href="#cb151-38" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(</span>
+<span id="cb151-39"><a href="#cb151-39" aria-hidden="true" tabindex="-1"></a>      <span class="at">Strategy =</span> strategy,</span>
+<span id="cb151-40"><a href="#cb151-40" aria-hidden="true" tabindex="-1"></a>      <span class="at">Cost =</span> base_cost,</span>
+<span id="cb151-41"><a href="#cb151-41" aria-hidden="true" tabindex="-1"></a>      <span class="at">Severe_Prevented =</span> <span class="fu">sum</span>(Severe <span class="sc">-</span> predicted),</span>
+<span id="cb151-42"><a href="#cb151-42" aria-hidden="true" tabindex="-1"></a>      <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb151-43"><a href="#cb151-43" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb151-44"><a href="#cb151-44" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb151-45"><a href="#cb151-45" aria-hidden="true" tabindex="-1"></a>      <span class="at">Cost_Effectiveness_per_mil =</span> Severe_Prevented <span class="sc">/</span> Cost <span class="sc">*</span> <span class="fl">1e6</span></span>
+<span id="cb151-46"><a href="#cb151-46" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb151-47"><a href="#cb151-47" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb151-48"><a href="#cb151-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb151-49"><a href="#cb151-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb151-50"><a href="#cb151-50" aria-hidden="true" tabindex="-1"></a>drone_hardware <span class="ot">&lt;-</span> <span class="dv">9000</span></span>
+<span id="cb151-51"><a href="#cb151-51" aria-hidden="true" tabindex="-1"></a>drone_operator <span class="ot">&lt;-</span> <span class="dv">450</span></span>
+<span id="cb151-52"><a href="#cb151-52" aria-hidden="true" tabindex="-1"></a>drone_flight <span class="ot">&lt;-</span> <span class="dv">45</span></span>
+<span id="cb151-53"><a href="#cb151-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb151-54"><a href="#cb151-54" aria-hidden="true" tabindex="-1"></a>lifeguard_hourly <span class="ot">&lt;-</span> <span class="dv">58</span></span>
+<span id="cb151-55"><a href="#cb151-55" aria-hidden="true" tabindex="-1"></a>lifeguard_fte <span class="ot">&lt;-</span> <span class="dv">80000</span></span>
+<span id="cb151-56"><a href="#cb151-56" aria-hidden="true" tabindex="-1"></a>lifeguard_training <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb151-57"><a href="#cb151-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb151-58"><a href="#cb151-58" aria-hidden="true" tabindex="-1"></a>campaign_cost <span class="ot">&lt;-</span> <span class="dv">15000</span></span>
+<span id="cb151-59"><a href="#cb151-59" aria-hidden="true" tabindex="-1"></a>first_aid_cost <span class="ot">&lt;-</span> <span class="dv">20000</span></span>
+<span id="cb151-60"><a href="#cb151-60" aria-hidden="true" tabindex="-1"></a>pa_cost <span class="ot">&lt;-</span> <span class="dv">25000</span></span>
+<span id="cb151-61"><a href="#cb151-61" aria-hidden="true" tabindex="-1"></a>flags_cost <span class="ot">&lt;-</span> <span class="dv">5000</span></span>
+<span id="cb151-62"><a href="#cb151-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb151-63"><a href="#cb151-63" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> task2_data</span>
+<span id="cb151-64"><a href="#cb151-64" aria-hidden="true" tabindex="-1"></a>nb <span class="ot">&lt;-</span> <span class="fu">n_distinct</span>(d<span class="sc">$</span>beach_nm)</span>
+<span id="cb151-65"><a href="#cb151-65" aria-hidden="true" tabindex="-1"></a>np <span class="ot">&lt;-</span> <span class="fu">n_distinct</span>(d<span class="sc">$</span>postcode)</span>
+<span id="cb151-66"><a href="#cb151-66" aria-hidden="true" tabindex="-1"></a>summer <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"November"</span>, <span class="st">"December"</span>, <span class="st">"January"</span>, <span class="st">"February"</span>)</span>
+<span id="cb151-67"><a href="#cb151-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb151-68"><a href="#cb151-68" aria-hidden="true" tabindex="-1"></a><span class="co">#To check if function works. should result in 0 as the output.</span></span>
+<span id="cb151-69"><a href="#cb151-69" aria-hidden="true" tabindex="-1"></a><span class="fu">evaluate</span>(<span class="st">"No change"</span>, d, <span class="dv">1</span>, <span class="dv">1</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb151-70"><a href="#cb151-70" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">max_abs =</span> <span class="fu">max</span>(<span class="fu">abs</span>(Severe_Prevented)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 1 × 1
+  max_abs
+    &lt;dbl&gt;
+1       0</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb153"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb153-1"><a href="#cb153-1" aria-hidden="true" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb153-2"><a href="#cb153-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb153-3"><a href="#cb153-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Full-time lifeguard: 1 FTE per beach = 1750 hrs/year</span></span>
+<span id="cb153-4"><a href="#cb153-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">evaluate</span>(<span class="st">"Full-time lifeguard"</span>,</span>
+<span id="cb153-5"><a href="#cb153-5" aria-hidden="true" tabindex="-1"></a>           <span class="fu">mutate</span>(d, <span class="at">lg_hrs =</span> lg_hrs <span class="sc">+</span> <span class="dv">1750</span> <span class="sc">/</span> <span class="dv">12</span>),</span>
+<span id="cb153-6"><a href="#cb153-6" aria-hidden="true" tabindex="-1"></a>           nb <span class="sc">*</span> (lifeguard_fte <span class="sc">+</span> lifeguard_training),</span>
+<span id="cb153-7"><a href="#cb153-7" aria-hidden="true" tabindex="-1"></a>           lifeguard_fte <span class="sc">+</span> lifeguard_training),</span>
+<span id="cb153-8"><a href="#cb153-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb153-9"><a href="#cb153-9" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Casual lifeguard: same additional hours, paid hourly</span></span>
+<span id="cb153-10"><a href="#cb153-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">evaluate</span>(<span class="st">"Casual lifeguard"</span>,</span>
+<span id="cb153-11"><a href="#cb153-11" aria-hidden="true" tabindex="-1"></a>           <span class="fu">mutate</span>(d, <span class="at">lg_hrs =</span> lg_hrs <span class="sc">+</span> <span class="dv">1750</span> <span class="sc">/</span> <span class="dv">12</span>),</span>
+<span id="cb153-12"><a href="#cb153-12" aria-hidden="true" tabindex="-1"></a>           nb <span class="sc">*</span> <span class="dv">1750</span> <span class="sc">*</span> lifeguard_hourly,</span>
+<span id="cb153-13"><a href="#cb153-13" aria-hidden="true" tabindex="-1"></a>           <span class="dv">1750</span> <span class="sc">*</span> lifeguard_hourly),</span>
+<span id="cb153-14"><a href="#cb153-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb153-15"><a href="#cb153-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Drone: +120 flight hrs/month per beach</span></span>
+<span id="cb153-16"><a href="#cb153-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">evaluate</span>(<span class="st">"Drone"</span>,</span>
+<span id="cb153-17"><a href="#cb153-17" aria-hidden="true" tabindex="-1"></a>           <span class="fu">mutate</span>(d, <span class="at">drone_hrs =</span> drone_hrs <span class="sc">+</span> <span class="dv">120</span>),</span>
+<span id="cb153-18"><a href="#cb153-18" aria-hidden="true" tabindex="-1"></a>           nb <span class="sc">*</span> (drone_hardware <span class="sc">+</span> drone_operator <span class="sc">+</span> <span class="dv">120</span> <span class="sc">*</span> <span class="dv">12</span> <span class="sc">*</span> drone_flight),</span>
+<span id="cb153-19"><a href="#cb153-19" aria-hidden="true" tabindex="-1"></a>           drone_hardware <span class="sc">+</span> drone_operator <span class="sc">+</span> <span class="dv">120</span> <span class="sc">*</span> <span class="dv">12</span> <span class="sc">*</span> drone_flight),</span>
+<span id="cb153-20"><a href="#cb153-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb153-21"><a href="#cb153-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Education campaign: postcode-level intervention</span></span>
+<span id="cb153-22"><a href="#cb153-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">evaluate</span>(<span class="st">"Education campaign"</span>,</span>
+<span id="cb153-23"><a href="#cb153-23" aria-hidden="true" tabindex="-1"></a>           <span class="fu">mutate</span>(d, <span class="at">campaign_idx =</span> <span class="fu">ifelse</span>(</span>
+<span id="cb153-24"><a href="#cb153-24" aria-hidden="true" tabindex="-1"></a>             calendar_month <span class="sc">%in%</span> summer,</span>
+<span id="cb153-25"><a href="#cb153-25" aria-hidden="true" tabindex="-1"></a>             <span class="fu">pmax</span>(campaign_idx, <span class="fl">0.7</span>),</span>
+<span id="cb153-26"><a href="#cb153-26" aria-hidden="true" tabindex="-1"></a>             campaign_idx</span>
+<span id="cb153-27"><a href="#cb153-27" aria-hidden="true" tabindex="-1"></a>           )),</span>
+<span id="cb153-28"><a href="#cb153-28" aria-hidden="true" tabindex="-1"></a>           np <span class="sc">*</span> campaign_cost,</span>
+<span id="cb153-29"><a href="#cb153-29" aria-hidden="true" tabindex="-1"></a>           campaign_cost,</span>
+<span id="cb153-30"><a href="#cb153-30" aria-hidden="true" tabindex="-1"></a>           <span class="at">location =</span> <span class="st">"postcode"</span>),</span>
+<span id="cb153-31"><a href="#cb153-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb153-32"><a href="#cb153-32" aria-hidden="true" tabindex="-1"></a>  <span class="co"># First aid training: postcode-level intervention</span></span>
+<span id="cb153-33"><a href="#cb153-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">evaluate</span>(<span class="st">"First aid training"</span>,</span>
+<span id="cb153-34"><a href="#cb153-34" aria-hidden="true" tabindex="-1"></a>           <span class="fu">mutate</span>(d, <span class="at">first_aid_cap =</span> <span class="fu">pmin</span>(first_aid_cap <span class="sc">+</span> <span class="dv">10</span>, <span class="dv">100</span>)),</span>
+<span id="cb153-35"><a href="#cb153-35" aria-hidden="true" tabindex="-1"></a>           np <span class="sc">*</span> first_aid_cost,</span>
+<span id="cb153-36"><a href="#cb153-36" aria-hidden="true" tabindex="-1"></a>           first_aid_cost,</span>
+<span id="cb153-37"><a href="#cb153-37" aria-hidden="true" tabindex="-1"></a>           <span class="at">location =</span> <span class="st">"postcode"</span>),</span>
+<span id="cb153-38"><a href="#cb153-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb153-39"><a href="#cb153-39" aria-hidden="true" tabindex="-1"></a>  <span class="co"># PA system: only beaches without an existing system</span></span>
+<span id="cb153-40"><a href="#cb153-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">evaluate</span>(<span class="st">"PA system"</span>,</span>
+<span id="cb153-41"><a href="#cb153-41" aria-hidden="true" tabindex="-1"></a>           <span class="fu">mutate</span>(d, <span class="at">pa_system =</span> <span class="fu">factor</span>(<span class="st">"1"</span>, <span class="at">levels =</span> <span class="fu">levels</span>(pa_system))),</span>
+<span id="cb153-42"><a href="#cb153-42" aria-hidden="true" tabindex="-1"></a>           <span class="fu">n_distinct</span>(d<span class="sc">$</span>beach_nm[<span class="fu">as.character</span>(d<span class="sc">$</span>pa_system) <span class="sc">==</span> <span class="st">"0"</span>]) <span class="sc">*</span> pa_cost,</span>
+<span id="cb153-43"><a href="#cb153-43" aria-hidden="true" tabindex="-1"></a>           pa_cost) <span class="sc">%&gt;%</span></span>
+<span id="cb153-44"><a href="#cb153-44" aria-hidden="true" tabindex="-1"></a>            <span class="fu">filter</span>(beach_nm <span class="sc">%in%</span> d<span class="sc">$</span>beach_nm[</span>
+<span id="cb153-45"><a href="#cb153-45" aria-hidden="true" tabindex="-1"></a>              <span class="fu">as.character</span>(d<span class="sc">$</span>pa_system) <span class="sc">==</span> <span class="st">"0"</span> <span class="sc">&amp;</span></span>
+<span id="cb153-46"><a href="#cb153-46" aria-hidden="true" tabindex="-1"></a>              <span class="sc">!</span>d<span class="sc">$</span>beach_nm <span class="sc">%in%</span> d<span class="sc">$</span>beach_nm[<span class="fu">as.character</span>(d<span class="sc">$</span>pa_system) <span class="sc">==</span> <span class="st">"1"</span>]</span>
+<span id="cb153-47"><a href="#cb153-47" aria-hidden="true" tabindex="-1"></a>            ]),</span>
+<span id="cb153-48"><a href="#cb153-48" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Rip flags: only beaches without existing flags</span></span>
+<span id="cb153-49"><a href="#cb153-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">evaluate</span>(<span class="st">"Rip flags"</span>,</span>
+<span id="cb153-50"><a href="#cb153-50" aria-hidden="true" tabindex="-1"></a>           <span class="fu">mutate</span>(d, <span class="at">flags =</span> <span class="fu">factor</span>(<span class="st">"1"</span>, <span class="at">levels =</span> <span class="fu">levels</span>(flags))),</span>
+<span id="cb153-51"><a href="#cb153-51" aria-hidden="true" tabindex="-1"></a>           <span class="fu">n_distinct</span>(d<span class="sc">$</span>beach_nm[<span class="fu">as.character</span>(d<span class="sc">$</span>flags) <span class="sc">==</span> <span class="st">"0"</span>]) <span class="sc">*</span> flags_cost,</span>
+<span id="cb153-52"><a href="#cb153-52" aria-hidden="true" tabindex="-1"></a>           flags_cost) <span class="sc">%&gt;%</span></span>
+<span id="cb153-53"><a href="#cb153-53" aria-hidden="true" tabindex="-1"></a><span class="fu">filter</span>(beach_nm <span class="sc">%in%</span> d<span class="sc">$</span>beach_nm[</span>
+<span id="cb153-54"><a href="#cb153-54" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.character</span>(d<span class="sc">$</span>flags) <span class="sc">==</span> <span class="st">"0"</span> <span class="sc">&amp;</span></span>
+<span id="cb153-55"><a href="#cb153-55" aria-hidden="true" tabindex="-1"></a>  <span class="sc">!</span>d<span class="sc">$</span>beach_nm <span class="sc">%in%</span> d<span class="sc">$</span>beach_nm[<span class="fu">as.character</span>(d<span class="sc">$</span>flags) <span class="sc">==</span> <span class="st">"1"</span>]</span>
+<span id="cb153-56"><a href="#cb153-56" aria-hidden="true" tabindex="-1"></a>]),</span>
+<span id="cb153-57"><a href="#cb153-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb153-58"><a href="#cb153-58" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb153-59"><a href="#cb153-59" aria-hidden="true" tabindex="-1"></a>  <span class="co">#Add column --&gt; customise location to beach or postcode specific</span></span>
+<span id="cb153-60"><a href="#cb153-60" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb153-61"><a href="#cb153-61" aria-hidden="true" tabindex="-1"></a>    <span class="at">Location =</span> <span class="fu">ifelse</span>(</span>
+<span id="cb153-62"><a href="#cb153-62" aria-hidden="true" tabindex="-1"></a>      <span class="fu">is.na</span>(beach_nm),</span>
+<span id="cb153-63"><a href="#cb153-63" aria-hidden="true" tabindex="-1"></a>      <span class="fu">paste</span>(<span class="st">"Postcode"</span>, postcode),</span>
+<span id="cb153-64"><a href="#cb153-64" aria-hidden="true" tabindex="-1"></a>      beach_nm</span>
+<span id="cb153-65"><a href="#cb153-65" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb153-66"><a href="#cb153-66" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb153-67"><a href="#cb153-67" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(</span>
+<span id="cb153-68"><a href="#cb153-68" aria-hidden="true" tabindex="-1"></a>    Strategy, Location, Cost,</span>
+<span id="cb153-69"><a href="#cb153-69" aria-hidden="true" tabindex="-1"></a>    Severe_Prevented, Cost_Effectiveness_per_mil</span>
+<span id="cb153-70"><a href="#cb153-70" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb153-71"><a href="#cb153-71" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(Cost_Effectiveness_per_mil))</span>
+<span id="cb153-72"><a href="#cb153-72" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(results, <span class="dv">20</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 20 × 5
    Strategy           Location      Cost Severe_Prevented Cost_Effectiveness_p…¹
@@ -106341,6 +106519,429 @@ rain_mm             rain_mm    0.01827396</code></pre>
 19 Education campaign Postcode 25… 15000           0.0492                   3.28
 20 Education campaign Postcode 25… 15000           0.0463                   3.09
 # ℹ abbreviated name: ¹​Cost_Effectiveness_per_mil</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb155"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb155-1"><a href="#cb155-1" aria-hidden="true" tabindex="-1"></a>  cost_t <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb155-2"><a href="#cb155-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nrow</span>(results)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 396</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb157"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb157-1"><a href="#cb157-1" aria-hidden="true" tabindex="-1"></a>  cost_t <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb157-2"><a href="#cb157-2" aria-hidden="true" tabindex="-1"></a>  count <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb157-3"><a href="#cb157-3" aria-hidden="true" tabindex="-1"></a>  selected <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb157-4"><a href="#cb157-4" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb157-5"><a href="#cb157-5" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(results<span class="sc">$</span>Cost)) {</span>
+<span id="cb157-6"><a href="#cb157-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (cost_t <span class="sc">+</span> results<span class="sc">$</span>Cost[i] <span class="sc">&lt;</span> <span class="fl">2e6</span> <span class="sc">&amp;</span> results<span class="sc">$</span>Cost_Effectiveness_per_mil[i] <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb157-7"><a href="#cb157-7" aria-hidden="true" tabindex="-1"></a>      count <span class="ot">=</span> count <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb157-8"><a href="#cb157-8" aria-hidden="true" tabindex="-1"></a>      selected <span class="ot">&lt;-</span> <span class="fu">c</span>(selected, i)</span>
+<span id="cb157-9"><a href="#cb157-9" aria-hidden="true" tabindex="-1"></a>       </span>
+<span id="cb157-10"><a href="#cb157-10" aria-hidden="true" tabindex="-1"></a>    cost_t <span class="ot">=</span> cost_t <span class="sc">+</span> results<span class="sc">$</span>Cost[i]</span>
+<span id="cb157-11"><a href="#cb157-11" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb157-12"><a href="#cb157-12" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb157-13"><a href="#cb157-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb157-14"><a href="#cb157-14" aria-hidden="true" tabindex="-1"></a>  count</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 54</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb159"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb159-1"><a href="#cb159-1" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(results[selected, ])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 19%">
+<col style="width: 31%">
+<col style="width: 6%">
+<col style="width: 17%">
+<col style="width: 27%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Strategy</th>
+<th style="text-align: left;">Location</th>
+<th style="text-align: right;">Cost</th>
+<th style="text-align: right;">Severe_Prevented</th>
+<th style="text-align: right;">Cost_Effectiveness_per_mil</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Seven Mile Beach (Lennox Head)</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">1.6028260</td>
+<td style="text-align: right;">21.5868826</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2251</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.2268137</td>
+<td style="text-align: right;">15.1209138</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">North Wollongong Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">1.0238397</td>
+<td style="text-align: right;">13.7890864</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2260</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.1689681</td>
+<td style="text-align: right;">11.2645430</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2539</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.1486637</td>
+<td style="text-align: right;">9.9109161</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Copacabana Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.6952900</td>
+<td style="text-align: right;">9.3641749</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2026</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.1393388</td>
+<td style="text-align: right;">9.2892516</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2481</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.1182631</td>
+<td style="text-align: right;">7.8842053</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2533</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.1094182</td>
+<td style="text-align: right;">7.2945468</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Lighthouse Beach (Ballina)</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.5031790</td>
+<td style="text-align: right;">6.7768221</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2035</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0976788</td>
+<td style="text-align: right;">6.5119204</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Terrigal Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.4799666</td>
+<td style="text-align: right;">6.4641968</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Byron Bay (Main Beach)</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.4696006</td>
+<td style="text-align: right;">6.3245877</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Kiama Surf Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.3096951</td>
+<td style="text-align: right;">4.1709774</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Coogee Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.2816429</td>
+<td style="text-align: right;">3.7931701</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Bondi Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.2696994</td>
+<td style="text-align: right;">3.6323158</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Mollymook Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.2678419</td>
+<td style="text-align: right;">3.6072977</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2478</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0521883</td>
+<td style="text-align: right;">3.4792214</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2550</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0492078</td>
+<td style="text-align: right;">3.2805215</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2540</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0463058</td>
+<td style="text-align: right;">3.0870539</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2096</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0459825</td>
+<td style="text-align: right;">3.0654976</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2291</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0450435</td>
+<td style="text-align: right;">3.0028986</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Maroubra Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.2220024</td>
+<td style="text-align: right;">2.9899311</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Palm Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.2215672</td>
+<td style="text-align: right;">2.9840705</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">First aid training</td>
+<td style="text-align: left;">Postcode 2537</td>
+<td style="text-align: right;">20000</td>
+<td style="text-align: right;">0.0571888</td>
+<td style="text-align: right;">2.8594403</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Rip flags</td>
+<td style="text-align: left;">Palm Beach</td>
+<td style="text-align: right;">5000</td>
+<td style="text-align: right;">0.0141871</td>
+<td style="text-align: right;">2.8374188</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2548</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0386536</td>
+<td style="text-align: right;">2.5769079</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2031</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0374868</td>
+<td style="text-align: right;">2.4991179</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Cronulla Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.1781027</td>
+<td style="text-align: right;">2.3986894</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2517</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0348471</td>
+<td style="text-align: right;">2.3231386</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Town Beach (Port Macquarie)</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.1541124</td>
+<td style="text-align: right;">2.0755875</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2450</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0306068</td>
+<td style="text-align: right;">2.0404554</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Tathra Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.1502816</td>
+<td style="text-align: right;">2.0239946</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Rip flags</td>
+<td style="text-align: left;">North Narrabeen Beach</td>
+<td style="text-align: right;">5000</td>
+<td style="text-align: right;">0.0097727</td>
+<td style="text-align: right;">1.9545324</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">First aid training</td>
+<td style="text-align: left;">Postcode 2260</td>
+<td style="text-align: right;">20000</td>
+<td style="text-align: right;">0.0366553</td>
+<td style="text-align: right;">1.8327641</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2103</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0265631</td>
+<td style="text-align: right;">1.7708720</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Wamberal Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.1282375</td>
+<td style="text-align: right;">1.7271044</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Clarkes Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.1257646</td>
+<td style="text-align: right;">1.6937989</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">First aid training</td>
+<td style="text-align: left;">Postcode 2230</td>
+<td style="text-align: right;">20000</td>
+<td style="text-align: right;">0.0317739</td>
+<td style="text-align: right;">1.5886972</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Bulli Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.1165886</td>
+<td style="text-align: right;">1.5702170</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2107</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0230139</td>
+<td style="text-align: right;">1.5342573</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Flynns Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.1101615</td>
+<td style="text-align: right;">1.4836560</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2551</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0215340</td>
+<td style="text-align: right;">1.4355989</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2099</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0210097</td>
+<td style="text-align: right;">1.4006461</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Bar Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.1020766</td>
+<td style="text-align: right;">1.3747696</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2536</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0200823</td>
+<td style="text-align: right;">1.3388218</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Drone</td>
+<td style="text-align: left;">Woonona Beach</td>
+<td style="text-align: right;">74250</td>
+<td style="text-align: right;">0.0993400</td>
+<td style="text-align: right;">1.3379130</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2444</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0191416</td>
+<td style="text-align: right;">1.2761088</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Rip flags</td>
+<td style="text-align: left;">Newcastle Beach</td>
+<td style="text-align: right;">5000</td>
+<td style="text-align: right;">0.0059936</td>
+<td style="text-align: right;">1.1987286</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Education campaign</td>
+<td style="text-align: left;">Postcode 2106</td>
+<td style="text-align: right;">15000</td>
+<td style="text-align: right;">0.0147835</td>
+<td style="text-align: right;">0.9855659</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Rip flags</td>
+<td style="text-align: left;">Seven Mile Beach (Lennox Head)</td>
+<td style="text-align: right;">5000</td>
+<td style="text-align: right;">0.0048073</td>
+<td style="text-align: right;">0.9614602</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Rip flags</td>
+<td style="text-align: left;">Austinmer Beach</td>
+<td style="text-align: right;">5000</td>
+<td style="text-align: right;">0.0037248</td>
+<td style="text-align: right;">0.7449634</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Rip flags</td>
+<td style="text-align: left;">Garie Beach</td>
+<td style="text-align: right;">5000</td>
+<td style="text-align: right;">0.0036765</td>
+<td style="text-align: right;">0.7353078</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Rip flags</td>
+<td style="text-align: left;">Woonona Beach</td>
+<td style="text-align: right;">5000</td>
+<td style="text-align: right;">0.0015838</td>
+<td style="text-align: right;">0.3167618</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 </section>
